@@ -2,8 +2,15 @@ package net.daneshkar.cinematicketreservationsystem.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import net.daneshkar.cinematicketreservationsystem.dto.ApiResponse;
+import net.daneshkar.cinematicketreservationsystem.dto.auth.LoginRequestDto;
+import net.daneshkar.cinematicketreservationsystem.dto.auth.RegisterRequestDto;
+import net.daneshkar.cinematicketreservationsystem.dto.auth.UserResponseDto;
+import net.daneshkar.cinematicketreservationsystem.service.AuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,14 +33,17 @@ public class AuthController {
     private final SecurityContextRepository securityContextRepository;
     private final SecurityContextHolderStrategy securityContextHolderStrategy =
             SecurityContextHolder.getContextHolderStrategy();
+
+    private final AuthService authService;
+
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest loginRequest,
+    public ResponseEntity<ApiResponse<String>> login(@Valid @RequestBody LoginRequestDto loginRequestDto,
                                         HttpServletRequest request,
                                         HttpServletResponse response) {
 
         // ۱. اعتبارسنجی کاربر
         Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(
-                loginRequest.username(), loginRequest.password());
+                loginRequestDto.username(), loginRequestDto.password());
 
         Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
 
@@ -45,9 +55,16 @@ public class AuthController {
         // ۳. ذخیره کانتکست در HttpSession و ست شدن خودکار کوکی JSESSIONID
         securityContextRepository.saveContext(context, request, response);
 
-        return ResponseEntity.ok("ورود موفقیت‌آمیز بود.");
+        return ResponseEntity.ok(new ApiResponse<>("ورود موفقیت‌آمیز بود.", null));
     }
 
-    public record LoginRequest(String username, String password) {}
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<UserResponseDto>> register(@Valid @RequestBody RegisterRequestDto registerRequestDto){
+        UserResponseDto registered = authService.register(registerRequestDto);
 
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new ApiResponse<>("ثبت‌نام با موفقیت انجام شد.", registered));
+
+    }
 }

@@ -2,15 +2,19 @@ package net.daneshkar.cinematicketreservationsystem.entity;
 
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import net.daneshkar.cinematicketreservationsystem.entity.enums.Role;
+import org.hibernate.proxy.HibernateProxy;
+
+import java.util.Objects;
 
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@Getter
+@Setter
+@ToString
 @Table(
         name = "user_tb",
         uniqueConstraints = {

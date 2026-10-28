@@ -19,11 +19,10 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -33,6 +32,8 @@ public class AuthController {
     private final SecurityContextRepository securityContextRepository;
     private final SecurityContextHolderStrategy securityContextHolderStrategy =
             SecurityContextHolder.getContextHolderStrategy();
+    private final SessionAuthenticationStrategy sessionAuthenticationStrategy;
+
 
     private final AuthService authService;
 
@@ -46,6 +47,13 @@ public class AuthController {
                 loginRequestDto.username(), loginRequestDto.password());
 
         Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
+
+        sessionAuthenticationStrategy.onAuthentication(
+                authenticationResponse,
+                request,
+                response
+        );
+
 
         // ۲. ایجاد SecurityContext جدید و مقداردهی
         SecurityContext context = securityContextHolderStrategy.createEmptyContext();
@@ -67,4 +75,29 @@ public class AuthController {
                 .body(new ApiResponse<>("ثبت‌نام با موفقیت انجام شد.", registered));
 
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponseDto>> me(Authentication authentication){
+        UserResponseDto currentUser = authService.getCurrentUser(authentication.getName());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new ApiResponse<>("کاربر یافت شد.", currentUser));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Authentication authentication) {
+
+        SecurityContextLogoutHandler logoutHandler =
+                new SecurityContextLogoutHandler();
+
+        logoutHandler.logout(request, response, authentication);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>("خروج با موفقیت انجام شد.", null));
+    }
+
 }

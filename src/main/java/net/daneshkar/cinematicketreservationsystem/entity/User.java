@@ -16,7 +16,7 @@ import java.util.Objects;
 @Setter
 @ToString
 @Table(
-        name = "user_tb",
+        name = "users",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_user_username",
@@ -41,6 +41,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    @ToString.Exclude
     private String password;
 
     @Enumerated(EnumType.STRING)

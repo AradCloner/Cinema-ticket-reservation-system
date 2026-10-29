@@ -33,3 +33,16 @@ replay_pid*
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+
+# Maven build output
+/target/
+
+# Local IntelliJ IDEA configuration and database metadata
+/.idea/
+*.iml
+
+# macOS metadata
+.DS_Store
+
+# Generated Spring Initializr help
+/HELP.md

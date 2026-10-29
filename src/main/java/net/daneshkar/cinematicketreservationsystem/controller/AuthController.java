@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import net.daneshkar.cinematicketreservationsystem.dto.ApiResponse;
+import net.daneshkar.cinematicketreservationsystem.dto.auth.CsrfResponseDto;
 import net.daneshkar.cinematicketreservationsystem.dto.auth.LoginRequestDto;
 import net.daneshkar.cinematicketreservationsystem.dto.auth.RegisterRequestDto;
 import net.daneshkar.cinematicketreservationsystem.dto.auth.UserResponseDto;
@@ -22,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,6 +38,12 @@ public class AuthController {
 
 
     private final AuthService authService;
+
+    @GetMapping("/csrf")
+    public ResponseEntity<ApiResponse<CsrfResponseDto>> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok(new ApiResponse<>("توکن CSRF", new CsrfResponseDto(
+                csrfToken.getHeaderName(), csrfToken.getParameterName(), csrfToken.getToken())));
+    }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<String>> login(@Valid @RequestBody LoginRequestDto loginRequestDto,

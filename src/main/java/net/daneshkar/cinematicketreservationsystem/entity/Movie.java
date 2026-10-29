@@ -16,6 +16,14 @@ public class Movie {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    // Existing movie rows also need an initial version when ddl-auto updates the schema.
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long version;
+
+    // Changing this field makes booking/cancellation participate in optimistic locking.
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long reservationRevision;
     @Column(nullable = false)
     private String title;
     @Column(nullable = false)

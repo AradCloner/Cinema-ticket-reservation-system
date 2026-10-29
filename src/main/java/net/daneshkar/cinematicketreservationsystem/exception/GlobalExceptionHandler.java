@@ -8,6 +8,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -15,6 +19,40 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class)
+    public ResponseEntity<ApiError> handleConcurrentBooking(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(LocalDateTime.now(),
+                409, "CONFLICT", "رزروهای فیلم هم‌زمان تغییر کرده‌اند؛ صندلی‌ها را دوباره بررسی کنید",
+                request.getRequestURI()));
+    }
+
+    @ExceptionHandler(InvalidBookingException.class)
+    public ResponseEntity<ApiError> handleInvalidBooking(InvalidBookingException exception, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(new ApiError(LocalDateTime.now(), 400,
+                "BAD_REQUEST", exception.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleOwnershipDenied(Exception exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(LocalDateTime.now(),
+                403, "FORBIDDEN", exception.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiError> handleMalformedRequest(HttpServletRequest request) {
+        ApiError error = new ApiError(LocalDateTime.now(), 400, "BAD_REQUEST",
+                "بدنه، پارامترها یا نوع داده‌های درخواست معتبر نیست", request.getRequestURI());
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataConflict(HttpServletRequest request) {
+        ApiError error = new ApiError(LocalDateTime.now(), 409, "CONFLICT",
+                "عملیات با محدودیت‌های داده‌ها تداخل دارد", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ApiError> handleDuplicateResource(

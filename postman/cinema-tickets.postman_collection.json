@@ -1,0 +1,510 @@
+{
+  "info": {
+    "name": "Cinema - Tickets, cancellation and statistics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run requests in order, with the Postman cookie jar enabled. Uses an available seat, and removes its test tickets."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "movieId",
+      "value": ""
+    },
+    {
+      "key": "seatNumber",
+      "value": ""
+    },
+    {
+      "key": "ticketId",
+      "value": ""
+    },
+    {
+      "key": "csrfHeader",
+      "value": "X-CSRF-TOKEN"
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Public movies, remember a movie",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/movies",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const movies = pm.response.json().data;",
+              "pm.test('Sample movies exist', () => pm.expect(movies.length).to.be.above(0));",
+              "if (movies.length) pm.collectionVariables.set('movieId', movies[0].id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Login user1",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"user1\", \"password\": \"user123\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - User CSRF token",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/csrf",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json().data;",
+              "pm.collectionVariables.set('csrfHeader', data.headerName);",
+              "pm.collectionVariables.set('csrfToken', data.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Free seats, choose one",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/movies/{{movieId}}/available-seats",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const seats = pm.response.json().data;",
+              "pm.test('A free seat exists', () => pm.expect(seats.length).to.be.above(0));",
+              "if (seats.length) pm.collectionVariables.set('seatNumber', seats[0]);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Book chosen seat",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/tickets/book",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"movieId\": {{movieId}}, \"seatNumber\": {{seatNumber}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "{{csrfHeader}}",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "const ticket = pm.response.json().data;",
+              "pm.collectionVariables.set('ticketId', ticket.id);",
+              "pm.test('Server price is positive', () => pm.expect(ticket.price).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Same seat conflicts",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/tickets/book",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"movieId\": {{movieId}}, \"seatNumber\": {{seatNumber}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "{{csrfHeader}}",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "pm.test('Standard error body', () => pm.expect(pm.response.json()).to.include.keys('timestamp','status','error','message','path'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - My tickets include new ticket",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tickets/my-tickets",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const id = Number(pm.collectionVariables.get('ticketId'));",
+              "pm.test('Own ticket is listed', () => pm.expect(pm.response.json().data.some(t => t.id === id)).to.be.true);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Chosen seat is unavailable",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/movies/{{movieId}}/available-seats",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const seat = Number(pm.collectionVariables.get('seatNumber'));",
+              "pm.test('Seat is not free', () => pm.expect(pm.response.json().data).not.to.include(seat));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - User cannot see admin stats",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/tickets/stats",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Cancel own ticket",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tickets/{{ticketId}}",
+        "header": [
+          {
+            "key": "{{csrfHeader}}",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Chosen seat is free again",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/movies/{{movieId}}/available-seats",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const seat = Number(pm.collectionVariables.get('seatNumber'));",
+              "pm.test('Seat is free again', () => pm.expect(pm.response.json().data).to.include(seat));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Rebook canceled seat",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/tickets/book",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"movieId\": {{movieId}}, \"seatNumber\": {{seatNumber}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "{{csrfHeader}}",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('ticketId', pm.response.json().data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Clean up rebooked ticket",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/tickets/{{ticketId}}",
+        "header": [
+          {
+            "key": "{{csrfHeader}}",
+            "value": "{{csrfToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - User logout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Anonymous cannot list tickets",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tickets/my-tickets",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Admin login",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"admin\", \"password\": \"admin123\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Admin ticket stats",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/tickets/stats",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const stats = pm.response.json().data;",
+              "pm.test('Statistics are nonnegative', () => { pm.expect(stats.totalTickets).to.be.at.least(0); pm.expect(stats.totalRevenue).to.be.at.least(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Admin does not have USER role",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/tickets/my-tickets",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 - Admin logout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+Cinema ticket reservation system — actual Maven test output
+
+Command: JAVA_HOME=<JDK 25> mvn -o test
+Database: disposable PostgreSQL 17, localhost:55432/cinema_test
+
+OPTIMISTIC LOCK: same movie version, different seats, one commit + one rollback, committed tickets = 1 [PASS]
+CONCURRENCY SAME SEAT: two buyers, HTTP [201, 409], committed tickets = 1 [PASS]
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.583 s -- in net.daneshkar.cinematicketreservationsystem.TicketConcurrencyTests
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.359 s -- in net.daneshkar.cinematicketreservationsystem.TicketIntegrationTests
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.334 s -- in net.daneshkar.cinematicketreservationsystem.CinemaTicketReservationSystemApplicationTests
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Finished at: 2026-10-29T22:36:41+03:30
+
+Source reports: target/surefire-reports/TEST-*.xml
+This text is extracted from the real run; it is not a screenshot.

@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "Cinema - Movies and admin session",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"},
+    {"key": "hallId", "value": "1"},
+    {"key": "movieId", "value": ""},
+    {"key": "csrfHeader", "value": "X-CSRF-TOKEN"},
+    {"key": "csrfToken", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "1 - Public movies",
+      "item": [
+        {
+          "name": "List movies and remember hall",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/movies"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Movies are public', () => pm.response.to.have.status(200));",
+            "const movies = pm.response.json().data;",
+            "if (movies.length) pm.collectionVariables.set('hallId', movies[0].cinemaHallId);"
+          ]}}]
+        },
+        {
+          "name": "Partial title search",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/movies/search?title=CePt"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Search succeeds', () => pm.response.to.have.status(200));",
+            "pm.test('Every title matches', () => pm.expect(pm.response.json().data.every(m => m.title.toLowerCase().includes('cept'))).to.be.true);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "2 - Admin login and CSRF",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/auth/login",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"username\":\"admin\",\"password\":\"admin123\"}"}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Login succeeds', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "Current admin",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/auth/me"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Admin session is active', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.role).to.eql('ADMIN'); });"
+          ]}}]
+        },
+        {
+          "name": "Get CSRF token",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/auth/csrf"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('CSRF token received', () => pm.response.to.have.status(200));",
+            "const data = pm.response.json().data;",
+            "pm.collectionVariables.set('csrfHeader', data.headerName);",
+            "pm.collectionVariables.set('csrfToken', data.token);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "3 - Movie CRUD",
+      "item": [
+        {
+          "name": "Create movie",
+          "request": {
+            "method": "POST", "url": "{{baseUrl}}/api/admin/movies",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "{{csrfHeader}}", "value": "{{csrfToken}}"}],
+            "body": {"mode": "raw", "raw": "{\"title\":\"Postman Movie\",\"genre\":\"Drama\",\"duration\":120,\"releaseDate\":\"2026-10-29\",\"description\":\"Created from Postman\",\"cinemaHallId\":{{hallId}}}"}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Movie created', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('movieId', pm.response.json().data.id);"
+          ]}}]
+        },
+        {
+          "name": "Get created movie",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/movies/{{movieId}}"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Movie found', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "Update movie",
+          "request": {
+            "method": "PUT", "url": "{{baseUrl}}/api/admin/movies/{{movieId}}",
+            "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "{{csrfHeader}}", "value": "{{csrfToken}}"}],
+            "body": {"mode": "raw", "raw": "{\"title\":\"Updated Postman Movie\",\"genre\":\"Drama\",\"duration\":100,\"releaseDate\":\"2026-10-29\",\"description\":\"Updated from Postman\",\"cinemaHallId\":{{hallId}}}"}
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Movie updated', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.title).to.eql('Updated Postman Movie'); });"
+          ]}}]
+        },
+        {
+          "name": "Delete movie",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/admin/movies/{{movieId}}", "header": [{"key": "{{csrfHeader}}", "value": "{{csrfToken}}"}]},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Movie deleted', () => pm.response.to.have.status(204));"
+          ]}}]
+        },
+        {
+          "name": "Deleted movie returns 404",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/movies/{{movieId}}"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Standard not-found error', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().error).to.eql('NOT_FOUND'); });"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "4 - Logout",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {"method": "POST", "url": "{{baseUrl}}/api/auth/logout"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Logout succeeds', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "Session is no longer authenticated",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/auth/me"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('Session ended', () => pm.response.to.have.status(401));"
+          ]}}]
+        }
+      ]
+    }
+  ]
+}

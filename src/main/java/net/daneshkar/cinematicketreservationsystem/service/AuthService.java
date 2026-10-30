@@ -23,11 +23,11 @@ public class AuthService {
 
     public UserResponseDto register(RegisterRequestDto registerRequestDto) {
         if (userRepository.existsByEmail(registerRequestDto.email())) {
-            throw new DuplicateResourceException("Email already exists");
+            throw new DuplicateResourceException("آدرس ایمیل تکراری است.");
         }
 
         if (userRepository.existsByUsername(registerRequestDto.username())) {
-            throw new DuplicateResourceException("Username already exists");
+            throw new DuplicateResourceException("نام کاریری تکراری است.");
         }
 
         User user = userRepository.save(

@@ -1,0 +1,518 @@
+{
+  "info": {
+    "name": "Cinema - Authentication and session",
+    "description": "Run all requests in order with cookie management enabled. Clear localhost cookies before starting. Request 01 generates a unique username/email for each run. Registers one test user per run; there is no user-deletion API. Uses a local sample password only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "authUsername",
+      "value": ""
+    },
+    {
+      "key": "authEmail",
+      "value": ""
+    },
+    {
+      "key": "authOtherUsername",
+      "value": ""
+    },
+    {
+      "key": "authOtherEmail",
+      "value": ""
+    },
+    {
+      "key": "authPassword",
+      "value": "AuthTest123!"
+    },
+    {
+      "key": "authUserId",
+      "value": ""
+    },
+    {
+      "key": "csrfHeader",
+      "value": "X-CSRF-TOKEN"
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Current user before login",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 12);",
+              "pm.collectionVariables.set('authUsername', 'auth_' + suffix);",
+              "pm.collectionVariables.set('authEmail', 'auth_' + suffix + '@example.com');",
+              "pm.collectionVariables.set('authOtherUsername', 'other_' + suffix);",
+              "pm.collectionVariables.set('authOtherEmail', 'other_' + suffix + '@example.com');",
+              "pm.collectionVariables.unset('authUserId');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Registration rejects invalid fields",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"ab\",\n  \"email\": \"invalid-email\",\n  \"password\": \"123\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Registration rejects missing fields",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Register a new USER",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{authUsername}}\",\n  \"email\": \"{{authEmail}}\",\n  \"password\": \"{{authPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.test('Correct user, role and no password', () => {",
+              "  const data = pm.response.json().data;",
+              "  pm.expect(data.username).to.eql(pm.collectionVariables.get('authUsername'));",
+              "  pm.expect(data.email).to.eql(pm.collectionVariables.get('authEmail'));",
+              "  pm.expect(data.role).to.eql('USER');",
+              "  pm.expect(data).not.to.have.property('password');",
+              "  pm.expect(data.userId).to.be.a('number').and.above(0);",
+              "});",
+              "pm.collectionVariables.set('authUserId', pm.response.json().data.userId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Registration does not log user in",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Duplicate username",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{authUsername}}\",\n  \"email\": \"{{authOtherEmail}}\",\n  \"password\": \"{{authPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Duplicate email",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{authOtherUsername}}\",\n  \"email\": \"{{authEmail}}\",\n  \"password\": \"{{authPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Wrong password",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{authUsername}}\",\n  \"password\": \"WrongPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Invalid login fields",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"\",\n  \"password\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Login newly registered user",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{authUsername}}\",\n  \"password\": \"{{authPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Session cookie returned', () => pm.expect(pm.cookies.get('JSESSIONID')).to.be.a('string').and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Current user with session",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Correct user, role and no password', () => {",
+              "  const data = pm.response.json().data;",
+              "  pm.expect(data.username).to.eql(pm.collectionVariables.get('authUsername'));",
+              "  pm.expect(data.email).to.eql(pm.collectionVariables.get('authEmail'));",
+              "  pm.expect(data.role).to.eql('USER');",
+              "  pm.expect(data).not.to.have.property('password');",
+              "  pm.expect(data.userId).to.be.a('number').and.above(0);",
+              "});",
+              "pm.test('Same registered user ID', () => pm.expect(pm.response.json().data.userId).to.eql(Number(pm.collectionVariables.get('authUserId'))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Get CSRF token using session",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/csrf",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json().data;",
+              "pm.test('CSRF fields are present', () => {",
+              "  ['headerName', 'parameterName', 'token'].forEach(key => pm.expect(data[key]).to.be.a('string').and.not.empty);",
+              "});",
+              "pm.collectionVariables.set('csrfHeader', data.headerName);",
+              "pm.collectionVariables.set('csrfToken', data.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Logout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Session no longer authenticates",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('Standard error body', () => {",
+              "  const error = pm.response.json();",
+              "  pm.expect(error).to.include.keys('timestamp', 'status', 'error', 'message', 'path');",
+              "  pm.expect(error.status).to.eql(pm.response.code);",
+              "  pm.expect(error.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
